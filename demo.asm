@@ -1,0 +1,10230 @@
+data segment
+;==========================================
+    ; 定义各音调频率，最后的0为了凑齐16字节
+    high_tone dw 524, 587, 659, 698, 784, 880, 988, 0 ;高音
+    middle_tone dw 262, 294, 330, 349, 392, 440, 494, 0 ;中音
+    low_tone dw 131, 147, 165, 175, 196, 220, 247, 0 ;低音
+    fref dw 0012H, 2870H ;基准频率
+    
+    
+;==========================================
+    MYLENGTH DW 50     ;指定直线的长度
+X        DW 0      ;指定直线x坐标
+Y        DW 0      ;指定直线y坐标
+MYFLAG   DW 0      ;决定画横线还是竖线还是斜线，0：横线，1：竖线，2：斜线
+
+
+X1 DW 0
+X2 DW 0            ;(X1,Y1),(X2,Y2)为斜线起点和终点坐标,其他变量为划斜线的辅助变量
+Y1 DW 0			   
+Y2 DW 0
+S1 DW 0
+S2 DW 0
+Yd DW 0
+Xd DW 0
+P DW 0
+
+
+NOW DB 0
+LAST DB 0
+
+infor1 db 0Dh, 0AH, "welocom you to come here listeng! $"
+ 
+     mus_freg  dw 330,294,262,294,3 dup (330)     ;频率表
+               dw 3 dup (294),330,392,392
+               dw 330,294,262,294,4 dup (330)
+               dw 294,294,330,294,262,-1
+     mus_time  dw 6 dup (25),50                   ;节拍表
+               dw 2 dup (25,25,50)
+               dw 12 dup (25),100
+;==========================================    
+data ends
+ 
+ ;栈段定义
+stack segment stack
+      db 200 dup(?)
+stack ends
+ 
+;--------字符串输出宏----------
+SHOWBM MACRO b
+     LEA DX,b
+     MOV AH,9
+     INT 21H
+ ENDM
+ 
+;----------音乐地址宏-----------
+ADDRESS MACRO A,B
+     LEA SI,A
+     LEA BP,DS:B
+ENDM
+;-------------------------------
+
+code segment
+assume cs:code, ds:data
+start:
+	CALL DRAWALL
+    mov ax, data
+    mov ds, ax
+ 
+    ; 初始化
+    mov al, 0B6H
+    out 43H, al
+    
+endless_loop:
+    in al, 60H
+   	; 如果Esc则退出程序
+    cmp al, 01H
+    je quit
+    ; 大于90则是break码，停止发声
+    cmp al, 90H
+    jb get_offset
+    ; 停止发声
+    and al, 0FCH
+    out 61H, al
+    CMP LAST,0
+    JE G
+   CALL DRAWALL
+    
+  G:   MOV LAST, 0           ;松开后置last为0
+    jmp endless_loop
+    
+get_offset:
+MOV NOW,AL
+	CMP AL, 10H
+	JNE CMPW
+	CMP AL,LAST
+	JE GO
+	CALL DRAWQ
+	MOV AL,NOW
+	MOV LAST, AL
+	
+CMPW:
+	CMP AL, 11H 
+	JNE CMPE
+	CMP AL,LAST
+	JE GO
+	CALL DRAWW
+	MOV AL,NOW
+	MOV LAST, AL
+	
+CMPE:
+	CMP AL,12H
+	JNE CMPR
+	CMP AL, LAST
+	JE GO
+	CALL DRAWE
+	MOV AL,NOW
+	MOV LAST,AL	
+
+CMPR:
+	CMP AL,13H
+	JNE CMPT
+	CMP AL, LAST
+	JE GO
+	CALL DRAWR
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPT:
+	CMP AL,14H
+	JNE CMPY
+	CMP AL, LAST
+	JE GO
+	CALL DRAWT
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPY:
+	CMP AL,15H
+	JNE CMPU
+	CMP AL, LAST
+	JE GO
+	CALL DRAWY
+	MOV AL,NOW
+	MOV LAST,AL
+CMPU:
+	CMP AL,16H
+	JNE CMPA
+	CMP AL, LAST
+	JE GO
+	CALL DRAWU
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPA:
+	CMP AL,1EH
+	JNE CMPSS
+	CMP AL, LAST
+	JE GO
+	CALL DRAWA
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPSS:
+	CMP AL,1FH
+	JNE CMPD
+	CMP AL, LAST
+	JE GO
+	CALL DRAWS
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPD:
+	CMP AL,20H
+	JNE CMPF
+	CMP AL, LAST
+	JE GO
+	CALL DRAWD
+	MOV AL,NOW
+	MOV LAST,AL
+
+CMPF:
+	CMP AL,21H
+	JNE CMPG
+	CMP AL, LAST
+	JE GO
+	CALL DRAWF
+	MOV AL,NOW
+	MOV LAST,AL
+
+CMPG:
+	CMP AL,22H
+	JNE CMPH
+	CMP AL, LAST
+	JE GO
+	CALL DRAWG
+	MOV AL,NOW
+	MOV LAST,AL	
+	
+CMPH:
+	CMP AL,23H
+	JNE CMPJ
+	CMP AL, LAST
+	JE GO
+	CALL DRAWH
+	MOV AL,NOW
+	MOV LAST,AL	
+	
+CMPJ:
+	CMP AL,24H
+	JNE CMPZ
+	CMP AL, LAST
+	JE GO
+	CALL DRAWJ
+	MOV AL,NOW
+	MOV LAST,AL	
+	
+CMPZ:
+	CMP AL,2CH
+	JNE CMPX
+	CMP AL, LAST
+	JE GO
+	CALL DRAWZ
+	MOV AL,NOW
+	MOV LAST,AL	
+	
+CMPX:
+	CMP AL,2DH
+	JNE CMPC
+	CMP AL, LAST
+	JE GO
+	CALL DRAWX
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPC:
+	CMP AL,2EH
+	JNE CMPV
+	CMP AL, LAST
+	JE GO
+	CALL DRAWC
+	MOV AL,NOW
+	MOV LAST,AL	
+		
+CMPV:
+	CMP AL,2FH
+	JNE CMPB
+	CMP AL, LAST
+	JE GO
+	CALL DRAWV
+	MOV AL,NOW
+	MOV LAST,AL		
+
+CMPB:
+	CMP AL,30H
+	JNE CMPN
+	CMP AL, LAST
+	JE GO
+	CALL DRAWB
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPN:
+	CMP AL,31H
+	JNE CMPM
+	CMP AL, LAST
+	JE GO
+	CALL DRAWN
+	MOV AL,NOW
+	MOV LAST,AL
+	
+CMPM:
+	CMP AL,32H
+	JNE CMPL
+	CMP AL, LAST
+	JE GO
+	CALL DRAWM
+	MOV AL,NOW
+	MOV LAST,AL
+
+CMPL:
+	CMP AL,26H
+	JNE GO
+	CALL PLAYSONG
+GO:	
+    ; 获取音调频率在内存中的偏移量
+    ; si: 0高音 1中音 2低音
+    ; al: 0~6对应Do~Si
+    mov si, 0
+minus14:
+    cmp al, 16H
+    jle minus_end
+    sub al, 0EH
+    inc si
+    jmp minus14
+minus_end:
+    sub al, 10H
+    ; 如果小于0则不对，不能发声
+    cmp al, 0
+    jl endless_loop
+ 
+    ; 通过si，al获取频率
+    mov cl, 4 
+    shl si, cl
+    shl al, 1
+    mov ah, 0
+    mov bx, si
+    mov si, ax
+    mov cx, high_tone[bx][si]
+    mov dx, fref ; 基准频率高字节
+    mov ax, fref + 2 ; 基准频率低字节
+    div cx ; 基准频率除以音调频率
+    ; 商分两次传送
+    out 42H, al
+    mov al, ah
+    out 42H, al
+    ; 发声
+    or al, 03H
+    out 61H, al
+ 	
+    jmp endless_loop
+ 
+quit:
+    ; 停止发声并结束程序
+    and al, 0FCH
+    out 61H, al
+    mov ax, 4C00H
+    int 21H
+;==========================================    划线子程序
+MYSUB  PROC                ;画线子程序
+
+       CLC
+
+       MOV BX,MYLENGTH
+
+       MOV CX,X
+
+       MOV DX,Y
+
+       CMP MYFLAG ,1
+
+       JE LINEV
+       CMP MYFLAG ,2
+       JE  LOP3          
+
+       MOV AH,0CH
+
+       MOV AL,7
+
+LOP1:  INT 10H              ;画横线
+
+       INC CX
+
+       DEC BX
+
+       JNE LOP1
+
+       JMP SUBEND
+
+LINEV: MOV AH,0CH
+
+       MOV AL,7
+
+LOP2:  INT 10H              ;画竖线
+
+       INC DX
+
+       DEC BX
+
+       JNE LOP2
+       JMP SUBEND
+LOP3:                       ;画斜线
+
+
+    mov ax,x2
+    mov bx,x1
+    cmp ax,bx
+    jae dpos1
+    sub bx,ax
+    mov s1,-1
+    mov xd,bx
+    jmp d1
+dpos1:
+    sub ax,bx
+    mov s1,1
+    mov xd,ax   
+d1: 
+    mov ax,y2
+    mov bx,y1
+    cmp ax,bx
+    jae dpos2    	;y2>=y1
+    sub bx,ax    	;y2<y1
+    mov s2,-1 
+    mov yd,bx
+    jmp d2
+dpos2:
+    sub ax,bx
+    mov s2,1
+    mov yd,ax
+    
+d2:  
+    add ax,ax
+    mov bx,xd 
+    sub ax,bx  
+    mov p,ax   		;2dy-dx
+             
+    mov cx,x1         
+    mov dx,y1
+    
+pxie: 
+ 
+    mov al,7    	;设置划线颜色为白色
+    mov ah,0ch      ;写入点像
+    int 10h
+    
+    mov ax,p
+    mov bx,0
+    cmp ax,bx
+    jge ppos        ;p>=0
+    jl pneg         ;p<0
+                         
+ 
+ppos:   
+    mov ax,xd
+    mov bx,yd
+    cmp ax,bx
+    ja ddpos1       ;xd>yd
+    jbe ddneg1      ;xd<=yd
+    
+    
+ddpos1: 		;0<k<1  或者  -1<k<0  同时  p>=0
+    mov ax,x1		;x=x+1
+    mov bx,s1
+    add ax,s1
+    mov x1,ax
+    
+    mov ax,s2		;y=y+1
+    mov bx,y1
+    add bx,ax
+    mov y1,bx
+    
+    mov ax,p		;Pn+1=Pn+2(dy-dx)
+    mov bx,xd
+    mov cx,yd
+    add bx,bx
+    add cx,cx
+    sub cx,bx
+    add ax,cx
+    mov p,ax
+    
+    jmp plot
+ 
+ddneg1:			;k>1  或者  k<-1   同时  p>=0
+    mov ax,y1 		;y=y+1
+    inc ax
+    mov y1,ax
+    
+    mov ax,s1		;x=x+1  或者  x=x-1
+    mov bx,x1
+    add bx,ax
+    mov x1,bx
+    
+    mov ax,p		;Pn+1=Pn+2(dx-dy)
+    mov bx,xd
+    mov cx,yd
+    add bx,bx
+    add cx,cx
+    sub bx,cx
+    add ax,bx
+    mov p,ax
+    
+    jmp plot
+ 
+pneg:
+    mov ax,xd
+    mov bx,yd
+    cmp ax,bx
+    ja ddpos2       ;xd>yd
+    jbe ddneg2      ;xd<=yd   
+    
+    
+ddpos2:			;0<k<1  或者  -1<k<0  同时  p<0
+    mov ax,x1		;x=x+1
+    mov bx,s1
+    add ax,s1
+    mov x1,ax
+    
+    mov ax,p		;Pn+1=Pn+2dy
+    mov bx,yd
+    add bx,bx
+    add ax,bx
+    mov p,ax
+    
+    jmp plot
+ 
+ 
+ 
+ddneg2: 		;k>1  或者  k<-1   同时  p<0
+    mov ax,y1 		;y=y+1
+    inc ax
+    mov y1,ax
+    
+    mov ax,p		;Pn+1=Pn+2dx
+    mov bx,xd
+    add bx,bx
+    add ax,bx
+    mov p,ax
+    
+    jmp plot
+    
+ 
+plot:
+    mov cx,x1		;X坐标
+    mov dx,y1		;Y坐标
+    cmp cx,x2		;是否绘图完毕
+    jne pxie
+
+  
+SUBEND: RET
+
+MYSUB  ENDP
+;=========================================================
+
+
+;=========================================================;画子程钢琴键序
+DRAW  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,100
+ MOV y1,100
+ MOV x2,50
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,150
+ MOV y1,100
+ MOV x2,100
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,200
+ MOV y1,100
+ MOV x2,150
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,250
+ MOV y1,100
+ MOV x2,200
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+ MOV x1,250
+ MOV y1,150
+ MOV x2,200
+ MOV y2,250
+ MOV MYFLAG,2
+ CALL MYSUB
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,100
+ MOV Y,100
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+ 
+ MOV X,50
+ MOV Y,200
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+
+ MOV X,50
+ MOV Y,250
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+MOV X,50
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,100
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,150
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,200
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,250
+MOV Y,100
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+;==========================================
+
+RET
+DRAW ENDP
+
+;=========================================================;画按压W钢琴键子程序
+DRAWPRESSW  PROC 
+MOV AX,DATA
+
+MOV DS,AX
+
+MOV AH,0   
+
+MOV AL,12H              ;改变显示器显示方式为
+
+INT 10H               ;640*480*16二色显示方式
+
+;==========================================
+
+ 
+ 
+ 
+ ;===================================画斜线
+ MOV x1,100
+ MOV y1,100
+ MOV x2,50
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,150
+ MOV y1,100
+ MOV x2,100
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,200
+ MOV y1,100
+ MOV x2,150
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,250
+ MOV y1,100
+ MOV x2,200
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+ MOV x1,250
+ MOV y1,150
+ MOV x2,200
+ MOV y2,250
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,150
+ MOV y1,100
+ MOV x2,100
+ MOV y2,225
+ MOV MYFLAG,2
+ CALL MYSUB
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,100
+ MOV Y,100
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+ 
+ MOV X,50
+ MOV Y,200
+ MOV MYFLAG,0
+ MOV MYLENGTH ,50
+ CALL MYSUB
+ 
+  MOV X,100
+ MOV Y,225
+ MOV MYFLAG,0
+ MOV MYLENGTH ,50
+ CALL MYSUB
+
+ MOV X,50
+ MOV Y,250
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+ 
+ MOV X,150
+ MOV Y,200
+ MOV MYFLAG,0
+ MOV MYLENGTH ,50
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+MOV X,50
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,100
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,150
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,200
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,250
+MOV Y,100
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+;==========================================
+
+RET
+DRAWPRESSW ENDP 
+;=========================================================;画按Q钢琴键子程序
+DRAWPRESSQ  PROC 
+MOV AX,DATA
+
+MOV DS,AX
+
+MOV AH,0   
+
+MOV AL,12H              ;改变显示器显示方式为
+
+INT 10H               ;640*480*16二色显示方式
+
+;==========================================
+
+ 
+ 
+ 
+ ;===================================画斜线
+ MOV x1,100
+ MOV y1,100
+ MOV x2,50
+ MOV y2,225
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,150
+ MOV y1,100
+ MOV x2,100
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,200
+ MOV y1,100
+ MOV x2,150
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,250
+ MOV y1,100
+ MOV x2,200
+ MOV y2,200
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+ MOV x1,250
+ MOV y1,150
+ MOV x2,200
+ MOV y2,250
+ MOV MYFLAG,2
+ CALL MYSUB
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,100
+ MOV Y,100
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+ 
+ 
+ MOV X,50
+ MOV Y,225
+ MOV MYFLAG,0
+ MOV MYLENGTH ,50
+ CALL MYSUB
+ 
+ MOV X,100
+ MOV Y,200
+ MOV MYFLAG,0
+ MOV MYLENGTH ,100
+ CALL MYSUB
+ 
+ MOV X,150
+ MOV Y,200
+ MOV MYFLAG,0
+ MOV MYLENGTH ,50
+ CALL MYSUB
+ 
+  MOV X,50
+ MOV Y,250
+ MOV MYFLAG,0
+ MOV MYLENGTH ,150
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+MOV X,50
+MOV Y,225
+MOV MYFLAG,1
+MOV MYLENGTH ,25
+CALL MYSUB
+
+MOV X,100
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,150
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,200
+MOV Y,200
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+
+MOV X,250
+MOV Y,100
+MOV MYFLAG,1
+MOV MYLENGTH ,50
+CALL MYSUB
+;==========================================
+
+RET
+DRAWPRESSQ ENDP  
+
+;=========================================================;画所有程钢琴键子程序
+DRAWALL  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+
+ 
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWAll ENDP
+;=========================================================;画摁下Q
+DRAWQ  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+ ;===================================画斜线
+
+ 
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,180
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+   MOV X,40
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,130
+MOV MYFLAG,1
+MOV MYLENGTH ,10
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWQ ENDP
+
+
+;=========================================================;画摁下W
+DRAWW  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+
+ 
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+  MOV X,60
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+  MOV X,80
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWW ENDP
+;==========================================================================;画E
+DRAWE  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,80
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,40
+ CALL MYSUB
+ 
+  MOV X,100
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWE ENDP
+
+
+;==========================================================================;画R
+DRAWR  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,100
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,60
+ CALL MYSUB
+ 
+  MOV X,120
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWR ENDP
+
+;==========================================================================;画T
+DRAWT  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,120
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,80
+ CALL MYSUB
+ 
+  MOV X,140
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWT ENDP
+
+;==========================================================================;画Y
+DRAWY  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,140
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,100
+ CALL MYSUB
+ 
+  MOV X,160
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWY ENDP
+
+;==========================================================================;画U
+DRAWU  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,160
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,120
+ CALL MYSUB
+ 
+  MOV X,180
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWU ENDP
+
+
+;==========================================================================;画A
+DRAWA  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,180
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,140
+ CALL MYSUB
+ 
+  MOV X,200
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWA ENDP
+
+;==========================================================================;画S
+DRAWS  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,200
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,220
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWS ENDP
+
+
+
+;==========================================================================;画D
+DRAWD  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,220
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,180
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWD ENDP
+
+
+;==========================================================================;画F
+DRAWF  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,240
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,260
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWF ENDP
+
+
+;==========================================================================;画G
+DRAWG  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,260
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+  MOV X,280
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,180
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWG ENDP
+
+;==========================================================================;画H
+DRAWH  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,280
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,240
+ CALL MYSUB
+ 
+  MOV X,300
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWH ENDP
+
+
+;==========================================================================;画J
+DRAWJ  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,300
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,260
+ CALL MYSUB
+ 
+  MOV X,320
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,140
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWJ ENDP
+
+;==========================================================================;画Z
+DRAWZ  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,320
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,80
+ CALL MYSUB
+ 
+  MOV X,340
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,120
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWZ ENDP
+
+;==========================================================================;画X
+DRAWX  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,340
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,100
+ CALL MYSUB
+ 
+  MOV X,360
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,100
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWX ENDP
+
+
+;==========================================================================;画C
+DRAWC  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,360
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,120
+ CALL MYSUB
+ 
+  MOV X,380
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,80
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWC ENDP
+
+;==========================================================================;画V
+DRAWV  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,380
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,140
+ CALL MYSUB
+ 
+  MOV X,400
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,60
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWV ENDP
+
+;==========================================================================;画B
+DRAWB  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,400
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,160
+ CALL MYSUB
+ 
+  MOV X,420
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,40
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWB ENDP
+
+;==========================================================================;画N
+DRAWN  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+ MOV X,420
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,180
+ CALL MYSUB
+ 
+ 
+  MOV X,440
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWN ENDP
+
+
+;==========================================================================;画M
+DRAWM  PROC 
+MOV AX,DATA
+
+       MOV DS,AX
+
+       MOV AH,0   
+
+       MOV AL,12H              ;改变显示器显示方式为
+
+       INT 10H               ;640*480*16二色显示方式
+
+ 
+ ;===================================画斜线
+ MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ MOV x1,60
+ MOV y1,60
+ MOV x2,40
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+
+ MOV x1,80
+ MOV y1,60
+ MOV x2,60
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,100
+ MOV y1,60
+ MOV x2,80
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,120
+ MOV y1,60
+ MOV x2,100
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,140
+ MOV y1,60
+ MOV x2,120
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,160
+ MOV y1,60
+ MOV x2,140
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,180
+ MOV y1,60
+ MOV x2,160
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,200
+ MOV y1,60
+ MOV x2,180
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+  MOV x1,220
+ MOV y1,60
+ MOV x2,200
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ 
+ 
+  MOV x1,240
+ MOV y1,60
+ MOV x2,220
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,260
+ MOV y1,60
+ MOV x2,240
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,280
+ MOV y1,60
+ MOV x2,260
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,300
+ MOV y1,60
+ MOV x2,280
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,320
+ MOV y1,60
+ MOV x2,300
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,340
+ MOV y1,60
+ MOV x2,320
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,360
+ MOV y1,60
+ MOV x2,340
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,380
+ MOV y1,60
+ MOV x2,360
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,400
+ MOV y1,60
+ MOV x2,380
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,420
+ MOV y1,60
+ MOV x2,400
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,440
+ MOV y1,60
+ MOV x2,420
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,460
+ MOV y1,60
+ MOV x2,440
+ MOV y2,120
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480
+ MOV y1,60
+ MOV x2,460
+ MOV y2,130
+ MOV MYFLAG,2
+ CALL MYSUB
+ 
+ 
+  MOV x1,480;最右边的斜线
+ MOV y1,80
+ MOV x2,460
+ MOV y2,140
+ MOV MYFLAG,2
+ CALL MYSUB
+
+ ;===================================
+
+
+;==========================================画横线
+MOV X,440
+ MOV Y,130
+ MOV MYFLAG,0
+ MOV MYLENGTH ,20
+ CALL MYSUB
+ 
+ 
+ MOV X,60
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+ 
+ MOV X,260
+ MOV Y,60
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+ 
+ 
+ 
+ MOV X,40
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+
+  MOV X,240
+ MOV Y,120
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+
+
+  MOV X,40
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,200
+ CALL MYSUB
+ 
+  MOV X,240
+ MOV Y,140
+ MOV MYFLAG,0
+ MOV MYLENGTH ,220
+ CALL MYSUB
+;==========================================
+
+
+;==========================================画竖线
+
+MOV X,40
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,60
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,80
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,100
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,120
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,140
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,160
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,180
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,200
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,220
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,240
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,260
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,280
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,300
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,320
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,340
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,360
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,380
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+
+MOV X,400
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,420
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,440
+MOV Y,120
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+
+MOV X,460
+MOV Y,130
+MOV MYFLAG,1
+MOV MYLENGTH ,10
+CALL MYSUB
+
+MOV X,480;右上方的竖线
+MOV Y,60
+MOV MYFLAG,1
+MOV MYLENGTH ,20
+CALL MYSUB
+;==========================================
+
+RET
+DRAWM ENDP
+
+
+playsong proc
+ mov ax, data
+     mov ds, ax
+     mov ax, stack
+     mov ss, ax
+     mov sp, 200
+    
+     address mus_freg, mus_time
+     call music
+playsong endp
+;------------发声-------------
+gensound proc near
+     push ax
+     push bx
+     push cx
+     push dx
+     push di
+ 
+     mov al, 0b6H
+     out 43h, al
+     mov dx, 12h
+     mov ax, 348ch
+     div di
+     out 42h, al
+ 
+     mov al, ah
+     out 42h, al
+ 
+     in al, 61h
+     mov ah, al
+     or al, 3
+     out 61h, al
+wait1:
+     mov cx, 3314
+     call waitf
+delay1:
+     dec bx
+     jnz wait1
+ 
+     mov al, ah
+     out 61h, al
+ 
+     pop di
+     pop dx
+     pop cx
+     pop bx
+     pop ax
+     ret 
+gensound endp
+ 
+;--------------------------
+waitf proc near
+      push ax
+waitf1:
+      in al,61h
+      and al,10h
+      cmp al,ah
+      je waitf1
+      mov ah,al
+      loop waitf1
+      pop ax
+      ret
+waitf endp
+;--------------发声调用函数----------------
+music proc near
+      xor ax, ax
+freg:
+      mov di, [si]
+      cmp di, 0FFFFH
+      je end_mus
+      mov bx, ds:[bp]
+      call gensound
+      add si, 2
+      add bp, 2
+      jmp freg
+end_mus:
+      ret
+music endp
+
+
+code ends
+end start
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
